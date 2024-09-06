@@ -1,3 +1,32 @@
+# Arquivos de configuração do Sencha Architect
+.architect
+# Arquivo CSS gerado pelo Bootstrap                   
+bootstrap.css
+# Arquivo JavaScript gerado pelo Bootstrap               
+bootstrap.js
+# Configuração gerada pelo Bootstrap                 
+bootstrap.json
+# Configuração JSONP gerada pelo Bootstrap               
+bootstrap.jsonp     
+# Pasta de build gerada automaticamente         
+build/     
+# Configuração para tema classic do Ext JS                  
+classic.json  
+# Configuração JSONP para tema classic do Ext JS               
+classic.jsonp    
+# Pasta com bibliotecas do Ext JS            
+ext/        
+# Configuração para tema modern do Ext JS                 
+modern.json      
+# Configuração JSONP para tema modern do Ext JS            
+modern.jsonp        
+# Cache gerado pelo compilador SASS         
+resources/sass/.sass-cache/  
+# Arquivo CSS de pré-visualização do Architect 
+resources/.arch-internal-preview.css  
+# Arquivo CSS de pré-visualização interna do Architect
+.arch-internal-preview.css    
+
 # Dependências do Node.js
 node_modules/
 

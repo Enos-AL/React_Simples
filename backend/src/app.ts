@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path'; // Importando 'path' para manipular caminhos de diretórios
-import routes from './src/routes/usuarioRoutes';
+import routes from './routes/usuarioRoutes';
 
 const app = express();
 
