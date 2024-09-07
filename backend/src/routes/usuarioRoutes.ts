@@ -7,7 +7,7 @@ import { listarUsuarios } from '../controllers/listarUsuarios'
 import { criarChamados } from '../controllers/criarChamados'
 
 const router = Router();
-router.get('/criarChamados', criarChamados);
+router.post('/criarChamados', criarChamados);
 router.get('/listarUsuarios', listarUsuarios);
 router.post('/criarUsuario', criarUsuario);
 router.delete('/excluirUsuario/nome', excluirUsuario);
