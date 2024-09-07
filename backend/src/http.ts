@@ -6,6 +6,9 @@ import cors from "cors";            // Importa o módulo 'cors' para lidar com q
 // Cria uma instância da aplicação Express
 const app = express();
 
+// Configuração para interpretar JSON no corpo das requisições
+app.use(express.json()); // <-- Esta linha é necessária para que o Express entenda o JSON
+
 // Configuração do CORS para o servidor HTTP (Express)
 app.use(cors({
     origin: 'http://localhost:3001', // URL do frontend que será permitido
@@ -27,4 +30,3 @@ const io = new Server(serverHttp, {
 
 // Exporta as instâncias da aplicação Express, servidor HTTP e Socket.io para uso em outros módulos
 export { app, serverHttp, io };
-

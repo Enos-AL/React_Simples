@@ -1,31 +1,43 @@
 // src/controllers/usuarioController.ts
+import { connectToDatabase, pool} from '../config/bd'; // Verifique o caminho correto
 import { Request, Response } from 'express';
-import { pool, sql } from '../config/bd';
+import { sql } from '../config/bd';
 
-// Listar todos os usuários
-export async function listarUsuarios(req: Request, res: Response): Promise<void> {
+// Função para listar usuários
+export async function listarUsuarios(req: Request, res: Response) {
   try {
-    const result = await pool.request().query('SELECT * FROM Usuarios');
-    res.json(result.recordset);
+    const poolConnection = pool || await connectToDatabase();  // Conecta ou usa a conexão existente
+    const result = await poolConnection.request().query('SELECT * FROM Usuarios');
+    
+    res.status(200).json(result.recordset);
   } catch (error) {
-    console.error('Erro ao listar usuários:', error);
-    res.status(500).json({ error: 'Erro ao listar usuários' });
+    if (error instanceof Error) {
+      // Agora o TypeScript sabe que 'error' é do tipo 'Error'
+      console.error(`Erro ao listar usuários: ${error.message}`);
+      res.status(500).send(`Erro ao listar usuários: ${error.message}`);
+    } else {
+      // Caso o erro não seja uma instância de 'Error'
+      console.error('Erro desconhecido ao listar usuários:', error);
+      res.status(500).send('Erro desconhecido ao listar usuários.');
+    }
   }
 }
 
-// Criar um novo usuário
-export async function criarUsuario(req: Request, res: Response): Promise<void> {
-  const dados = req.body;
+// Atualizar dados dinamicamente com base no ID
+export async function atualizarDados(req: Request, res: Response): Promise<void> {
+  const { id } = req.params;
+  const { dados } = req.body;
 
   try {
-    // Verificar as colunas disponíveis
-    const columnsResult = await pool.request().query(`
+    const poolConnection = pool || await connectToDatabase(); // Conecta ou usa a conexão existente
+
+    const result = await poolConnection.request().query(`
       SELECT COLUMN_NAME
       FROM INFORMATION_SCHEMA.COLUMNS
       WHERE TABLE_NAME = 'Usuarios'
     `);
 
-    const nomesColunas = columnsResult.recordset.map((coluna: any) => coluna.COLUMN_NAME);
+    const nomesColunas = result.recordset.map((coluna: any) => coluna.COLUMN_NAME);
     const chaves = Object.keys(dados);
     const colunasValidas = chaves.every(chave => nomesColunas.includes(chave));
 
@@ -34,31 +46,37 @@ export async function criarUsuario(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // Construir a query de inserção dinamicamente
-    const colunasQuery = chaves.join(', ');
-    const valoresQuery = chaves.map(() => '@p').join(', ');
-    const valores = chaves.reduce((obj, chave, index) => {
-      obj[`p${index}`] = dados[chave];
-      return obj;
-    }, {} as any);
+    const atualizacoes = chaves.map(chave => `${chave} = @${chave}`).join(', ');
+    const request = poolConnection.request();
 
-    const query = `INSERT INTO Usuarios (${colunasQuery}) VALUES (${valoresQuery})`;
-    await pool.request().query(query, valores);
-    res.status(201).json({ message: 'Usuário criado com sucesso' });
+    chaves.forEach(chave => request.input(chave, dados[chave]));
+    request.input('id', id);
+
+    const updateResult = await request.query(`UPDATE Usuarios SET ${atualizacoes} WHERE id = @id`);
+    if (updateResult.rowsAffected[0] > 0) {
+      res.status(200).json({ message: 'Dados atualizados com sucesso' });
+    } else {
+      res.status(404).json({ message: 'Usuário não encontrado' });
+    }
   } catch (error) {
-    console.error('Erro ao criar usuário:', error);
-    res.status(500).json({ error: 'Erro ao criar usuário' });
+    if (error instanceof Error) {
+      console.error(`Erro ao atualizar dados: ${error.message}`);
+      res.status(500).json({ error: `Erro ao atualizar dados: ${error.message}` });
+    } else {
+      console.error('Erro desconhecido ao atualizar dados:', error);
+      res.status(500).json({ error: 'Erro desconhecido ao atualizar dados.' });
+    }
   }
 }
 
-// Excluir um usuário existente
+// Excluir um usuário existente pelo nome
 export async function excluirUsuario(req: Request, res: Response): Promise<void> {
-  const { id } = req.params;
+  const { nome } = req.params;
 
   try {
     const result = await pool.request()
-      .input('id', id)
-      .query('DELETE FROM Usuarios WHERE id = @id');
+      .input('nome', sql.VarChar, nome)  // Definindo o parâmetro 'nome' na query
+      .query('DELETE FROM Usuarios WHERE Nome = @nome');  // Excluindo pelo nome
 
     if (result.rowsAffected[0] > 0) {
       res.status(200).json({ message: 'Usuário excluído com sucesso' });
@@ -75,94 +93,86 @@ export async function excluirUsuario(req: Request, res: Response): Promise<void>
 // Listar todas as colunas da tabela 'Usuarios'
 export async function listarColunas(req: Request, res: Response): Promise<void> {
   try {
-    const result = await pool.request().query(`
+    const poolConnection = pool || await connectToDatabase(); // Conecta ou usa a conexão existente
+
+    const result = await poolConnection.request().query(`
       SELECT COLUMN_NAME
       FROM INFORMATION_SCHEMA.COLUMNS
       WHERE TABLE_NAME = 'Usuarios'
     `);
-    res.json(result.recordset);
+
+    res.status(200).json(result.recordset);
   } catch (error) {
-    console.error('Erro ao listar colunas:', error);
-    res.status(500).json({ error: 'Erro ao listar colunas' });
-  }
-}
-
-
-// Inserir dados dinamicamente com base nas colunas disponíveis
-export async function inserirDados(req: Request, res: Response): Promise<void> {
-  const { dados } = req.body; // dados deve ser um objeto com chaves correspondentes às colunas
-
-  try {
-    // Verificar as colunas disponíveis
-    const result = await pool.request().query(`
-      SELECT COLUMN_NAME
-      FROM INFORMATION_SCHEMA.COLUMNS
-      WHERE TABLE_NAME = 'Usuarios'
-    `);
-
-    const nomesColunas = result.recordset.map((coluna: any) => coluna.COLUMN_NAME);
-    const chaves = Object.keys(dados);
-    const colunasValidas = chaves.every(chave => nomesColunas.includes(chave));
-
-    if (!colunasValidas) {
-      res.status(400).json({ error: 'Dados fornecidos incluem colunas inválidas' });
-      return;
-    }
-
-    // Construir a query de inserção dinamicamente
-    const colunasQuery = chaves.join(', ');
-    const valoresQuery = chaves.map(() => '@p').join(', ');
-    const valores = chaves.map(chave => ({ name: chave, type: sql.VarChar, value: dados[chave] }));
-
-    const query = `INSERT INTO Usuarios (${colunasQuery}) VALUES (${valoresQuery})`;
-    const request = pool.request();
-
-    valores.forEach(param => request.input(param.name, param.type, param.value));
-
-    const insertResult = await request.query(query);
-    res.status(201).json({ id: insertResult.recordset[0].id });
-  } catch (error) {
-    console.error('Erro ao inserir dados:', error);
-    res.status(500).json({ error: 'Erro ao inserir dados' });
-  }
-}
-
-// Atualizar dados dinamicamente com base no ID
-export async function atualizarDados(req: Request, res: Response): Promise<void> {
-  const { id } = req.params;
-  const { dados } = req.body; // dados deve ser um objeto com chaves correspondentes às colunas
-
-  try {
-    // Verificar as colunas disponíveis
-    const result = await pool.request().query(`
-      SELECT COLUMN_NAME
-      FROM INFORMATION_SCHEMA.COLUMNS
-      WHERE TABLE_NAME = 'Usuarios'
-    `);
-
-    const nomesColunas = result.recordset.map((coluna: any) => coluna.COLUMN_NAME);
-    const chaves = Object.keys(dados);
-    const colunasValidas = chaves.every(chave => nomesColunas.includes(chave));
-
-    if (!colunasValidas) {
-      res.status(400).json({ error: 'Dados fornecidos incluem colunas inválidas' });
-      return;
-    }
-
-    // Construir a query de atualização dinamicamente
-    const atualizacoes = chaves.map(chave => `${chave} = @${chave}`).join(', ');
-    const request = pool.request();
-    chaves.forEach(chave => request.input(chave, dados[chave]));
-    request.input('id', id);
-
-    const updateResult = await request.query(`UPDATE Usuarios SET ${atualizacoes} WHERE id = @id`);
-    if (updateResult.rowsAffected[0] > 0) {
-      res.status(200).json({ message: 'Dados atualizados com sucesso' });
+    if (error instanceof Error) {
+      console.error(`Erro ao listar colunas: ${error.message}`);
+      res.status(500).json({ error: `Erro ao listar colunas: ${error.message}` });
     } else {
-      res.status(404).json({ message: 'Usuário não encontrado' });
+      console.error('Erro desconhecido ao listar colunas:', error);
+      res.status(500).json({ error: 'Erro desconhecido ao listar colunas.' });
     }
-  } catch (error) {
-    console.error('Erro ao atualizar dados:', error);
-    res.status(500).json({ error: 'Erro ao atualizar dados' });
   }
 }
+
+// Excluindo uma Coluna pelo nome
+export async function excluirColunas(req: Request, res: Response): Promise<void> {
+  const { colunasParaExcluir, confirmarExclusao } = req.body;
+
+  try {
+    const poolConnection = pool || await connectToDatabase(); // Conecta ou usa a conexão existente
+
+    // Obtém os nomes das colunas existentes na tabela
+    const result = await poolConnection.request().query(`
+      SELECT COLUMN_NAME
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_NAME = 'Usuarios'
+    `);
+
+    const nomesColunasExistentes = result.recordset.map((coluna: any) => coluna.COLUMN_NAME.toLowerCase());
+
+    for (const coluna of colunasParaExcluir) {
+      const nomeColunaLower = coluna.toLowerCase();
+      
+      // Verifica se a coluna existe
+      if (!nomesColunasExistentes.includes(nomeColunaLower)) {
+        res.status(400).json({ error: `A coluna "${coluna}" não existe na tabela.` });
+        return;
+      }
+
+      // Conta o número de registros não nulos na coluna para avaliar o risco
+      const contaDados = await poolConnection.request().query(`
+        SELECT COUNT(${coluna}) AS total FROM Usuarios WHERE ${coluna} IS NOT NULL
+      `);
+
+      const numeroDeDados = contaDados.recordset[0].total;
+
+      // Se a coluna possui dados e o usuário não confirmou a exclusão
+      if (numeroDeDados > 0 && !confirmarExclusao) {
+        res.status(400).json({
+          warning: `A coluna "${coluna}" possui ${numeroDeDados} registros. Excluir essa coluna resultará na perda de dados. Tem certeza de que deseja prosseguir?`,
+          confirmarExclusao: false
+        });
+        return;
+      }
+    }
+
+    // Se o usuário confirmou, remove as colunas
+    if (confirmarExclusao) {
+      for (const coluna of colunasParaExcluir) {
+        await poolConnection.request().query(`
+          ALTER TABLE Usuarios DROP COLUMN ${coluna}
+        `);
+      }
+      res.status(200).json({ message: 'Colunas excluídas com sucesso.' });
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error(`Erro ao excluir colunas: ${error.message}`);
+      res.status(500).json({ error: `Erro ao excluir colunas: ${error.message}` });
+    } else {
+      console.error('Erro desconhecido ao excluir colunas:', error);
+      res.status(500).json({ error: 'Erro desconhecido ao excluir colunas.' });
+    }
+  }
+}
+
+
