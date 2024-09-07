@@ -7,7 +7,7 @@ export async function criarUsuario(req: Request, res: Response): Promise<void> {
   const senhaInformada = dados.senha; // Campo separado para a senha
   const colunasProtegidas = getColunasProtegidas(); // Pegando a lista de colunas protegidas do arquivo .env
 
-  try {     
+  try {
     if (!dados || Object.keys(dados).length === 0) { // Verificar se o corpo da requisição contém dados válidos
       res.status(400).json({ error: 'Dados inválidos ou não fornecidos.' });
       return;
@@ -15,6 +15,7 @@ export async function criarUsuario(req: Request, res: Response): Promise<void> {
 
     const poolConnection = pool || await connectToDatabase();
 
+    // Obter os nomes das colunas da tabela 'Usuarios' dinamicamente
     const columnsResult = await poolConnection.request().query(`
       SELECT COLUMN_NAME
       FROM INFORMATION_SCHEMA.COLUMNS
@@ -84,24 +85,52 @@ export async function criarUsuario(req: Request, res: Response): Promise<void> {
       delete dados.id;
     }
 
-    const idResult = await poolConnection.request().query(`
-      SELECT MIN(T1.id + 1) AS menorIdFaltoso
-      FROM Usuarios T1
-      LEFT JOIN Usuarios T2 ON T1.id + 1 = T2.id
-      WHERE T2.id IS NULL
+    let novoId: number;
+
+    // Obter dinamicamente as colunas que possuem valores NULL em algum ID existente
+    const nullColumnsResult = await poolConnection.request().query(`
+      SELECT id
+      FROM Usuarios
+      WHERE ${nomesColunas.filter(coluna => coluna !== 'id').map(coluna => `${coluna} IS NULL`).join(' AND ')}
     `);
 
-    const novoId = idResult.recordset[0].menorIdFaltoso || 1;
+    if (nullColumnsResult.recordset.length > 0) {
+      // Se existir um registro com todas as colunas NULL, reutilize o ID
+      novoId = nullColumnsResult.recordset[0].id;
+    } else {
+      // Caso contrário, busque o próximo ID disponível
+      const idResult = await poolConnection.request().query(`
+        SELECT MIN(T1.id + 1) AS menorIdFaltoso
+        FROM Usuarios T1
+        LEFT JOIN Usuarios T2 ON T1.id + 1 = T2.id
+        WHERE T2.id IS NULL
+      `);
+
+      novoId = idResult.recordset[0].menorIdFaltoso || 1;
+    }
+
     dados.id = novoId;
 
-    const colunasQuery = Object.keys(dados).join(', ');
-    const valoresQuery = Object.keys(dados).map((_, index) => `@p${index}`).join(', ');
-    const request = poolConnection.request();
+    // Se o ID foi reutilizado, atualize o registro existente
+    if (nullColumnsResult.recordset.length > 0) {
+      const colunasUpdate = Object.keys(dados).map((coluna, index) => `${coluna} = @p${index}`).join(', ');
+      const requestUpdate = poolConnection.request();
 
-    Object.keys(dados).forEach((chave, index) => request.input(`p${index}`, dados[chave]));
+      Object.keys(dados).forEach((chave, index) => requestUpdate.input(`p${index}`, dados[chave]));
 
-    const query = `INSERT INTO Usuarios (${colunasQuery}) VALUES (${valoresQuery})`;
-    await request.query(query);
+      const queryUpdate = `UPDATE Usuarios SET ${colunasUpdate} WHERE id = @pId`;
+      await requestUpdate.input('pId', novoId).query(queryUpdate);
+    } else {
+      // Se não há um ID reutilizado, insira um novo registro
+      const colunasQuery = Object.keys(dados).join(', ');
+      const valoresQuery = Object.keys(dados).map((_, index) => `@p${index}`).join(', ');
+      const requestInsert = poolConnection.request();
+
+      Object.keys(dados).forEach((chave, index) => requestInsert.input(`p${index}`, dados[chave]));
+
+      const queryInsert = `INSERT INTO Usuarios (${colunasQuery}) VALUES (${valoresQuery})`;
+      await requestInsert.query(queryInsert);
+    }
 
     res.status(201).json({ message: 'Usuário criado com sucesso', id: novoId });
   } catch (error) {

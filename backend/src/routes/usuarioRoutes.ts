@@ -1,12 +1,14 @@
 // src/routes/usuarioRoutes.ts
 import { Router } from 'express';
-import { listarUsuarios, atualizarDados, excluirUsuario, listarColunas, excluirColunas  } from '../controllers/usuarioController';
+import { atualizarDados, excluirUsuario, listarColunas, excluirColunas } from '../controllers/usuarioController';
 import { criarUsuario } from '../controllers/incluirUsuario'
 import { incluirColunas } from '../controllers/incluirColunas'
+import { listarUsuarios } from '../controllers/listarUsuarios'
+import { criarChamados } from '../controllers/criarChamados'
 
 const router = Router();
-
-router.get('/', listarUsuarios);
+router.get('/criarChamados', criarChamados);
+router.get('/listarUsuarios', listarUsuarios);
 router.post('/criarUsuario', criarUsuario);
 router.delete('/excluirUsuario/nome', excluirUsuario);
 router.get('/listarColunas', listarColunas);

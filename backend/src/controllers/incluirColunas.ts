@@ -20,7 +20,7 @@ export async function incluirColunas(req: Request, res: Response): Promise<void>
 
         // Mapeia as colunas existentes para minúsculas, mantendo o nome original para comparações posteriores
         const nomesColunasExistentes = result.recordset.map((coluna: any) => ({
-            original: coluna.COLUMN_NAME, 
+            original: coluna.COLUMN_NAME,
             lower: coluna.COLUMN_NAME.toLowerCase()
         }));
 
@@ -35,7 +35,7 @@ export async function incluirColunas(req: Request, res: Response): Promise<void>
                 if (colunaExistente.original === novaColuna) {
                     res.status(400).json({ error: `A coluna "${novaColuna}" já existe com o mesmo nome.` });
                 } else {
-                    res.status(400).json({ 
+                    res.status(400).json({
                         error: `A coluna "${novaColuna}" já existe com uma diferença de maiúsculas/minúsculas. Coluna existente: "${colunaExistente.original}".`
                     });
                 }

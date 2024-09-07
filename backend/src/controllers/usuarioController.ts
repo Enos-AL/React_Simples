@@ -3,26 +3,6 @@ import { connectToDatabase, pool} from '../config/bd'; // Verifique o caminho co
 import { Request, Response } from 'express';
 import { sql } from '../config/bd';
 
-// Função para listar usuários
-export async function listarUsuarios(req: Request, res: Response) {
-  try {
-    const poolConnection = pool || await connectToDatabase();  // Conecta ou usa a conexão existente
-    const result = await poolConnection.request().query('SELECT * FROM Usuarios');
-    
-    res.status(200).json(result.recordset);
-  } catch (error) {
-    if (error instanceof Error) {
-      // Agora o TypeScript sabe que 'error' é do tipo 'Error'
-      console.error(`Erro ao listar usuários: ${error.message}`);
-      res.status(500).send(`Erro ao listar usuários: ${error.message}`);
-    } else {
-      // Caso o erro não seja uma instância de 'Error'
-      console.error('Erro desconhecido ao listar usuários:', error);
-      res.status(500).send('Erro desconhecido ao listar usuários.');
-    }
-  }
-}
-
 // Atualizar dados dinamicamente com base no ID
 export async function atualizarDados(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
