@@ -15,7 +15,7 @@ export async function incluirColunas(req: Request, res: Response): Promise<void>
         const result = await poolConnection.request().query(`
             SELECT COLUMN_NAME
             FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_NAME = 'Usuarios'
+            WHERE TABLE_NAME = 'Chamados'
         `);
 
         // Mapeia as colunas existentes para minúsculas, mantendo o nome original para comparações posteriores
@@ -46,7 +46,7 @@ export async function incluirColunas(req: Request, res: Response): Promise<void>
         // Se passar pelas verificações, adicionar as colunas ao banco de dados
         for (const novaColuna of novasColunasArray) {
             await poolConnection.request().query(`
-                ALTER TABLE Usuarios ADD ${novaColuna} VARCHAR(255)
+                ALTER TABLE Chamados ADD ${novaColuna} VARCHAR(255)
             `);
         }
 

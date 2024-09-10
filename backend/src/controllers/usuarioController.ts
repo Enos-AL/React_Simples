@@ -3,52 +3,6 @@ import { connectToDatabase, pool} from '../config/bd'; // Verifique o caminho co
 import { Request, Response } from 'express';
 import { sql } from '../config/bd';
 
-// Atualizar dados dinamicamente com base no ID
-export async function atualizarDados(req: Request, res: Response): Promise<void> {
-  const { id } = req.params;
-  const { dados } = req.body;
-
-  try {
-    const poolConnection = pool || await connectToDatabase(); // Conecta ou usa a conexão existente
-
-    const result = await poolConnection.request().query(`
-      SELECT COLUMN_NAME
-      FROM INFORMATION_SCHEMA.COLUMNS
-      WHERE TABLE_NAME = 'Usuarios'
-    `);
-
-    const nomesColunas = result.recordset.map((coluna: any) => coluna.COLUMN_NAME);
-    const chaves = Object.keys(dados);
-    const colunasValidas = chaves.every(chave => nomesColunas.includes(chave));
-
-    if (!colunasValidas) {
-      res.status(400).json({ error: 'Dados fornecidos incluem colunas inválidas' });
-      return;
-    }
-
-    const atualizacoes = chaves.map(chave => `${chave} = @${chave}`).join(', ');
-    const request = poolConnection.request();
-
-    chaves.forEach(chave => request.input(chave, dados[chave]));
-    request.input('id', id);
-
-    const updateResult = await request.query(`UPDATE Usuarios SET ${atualizacoes} WHERE id = @id`);
-    if (updateResult.rowsAffected[0] > 0) {
-      res.status(200).json({ message: 'Dados atualizados com sucesso' });
-    } else {
-      res.status(404).json({ message: 'Usuário não encontrado' });
-    }
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error(`Erro ao atualizar dados: ${error.message}`);
-      res.status(500).json({ error: `Erro ao atualizar dados: ${error.message}` });
-    } else {
-      console.error('Erro desconhecido ao atualizar dados:', error);
-      res.status(500).json({ error: 'Erro desconhecido ao atualizar dados.' });
-    }
-  }
-}
-
 // Excluir um usuário existente pelo nome
 export async function excluirUsuario(req: Request, res: Response): Promise<void> {
   const { nome } = req.params;

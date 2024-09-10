@@ -61,4 +61,4 @@ export async function connectToDatabase(): Promise<sql.ConnectionPool> {
   }
 }
 
-export { sql, pool }; // Exportando o pool e o sql
+export { sql, pool}; // Exportando o pool e o sql

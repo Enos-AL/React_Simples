@@ -5,15 +5,41 @@ import { Request, Response } from 'express';
 export async function criarUsuario(req: Request, res: Response): Promise<void> {
   const dados = req.body;
   const senhaInformada = dados.senha; // Campo separado para a senha
-  const colunasProtegidas = getColunasProtegidas(); // Pegando a lista de colunas protegidas do arquivo .env
+  
 
   try {
-    if (!dados || Object.keys(dados).length === 0) { // Verificar se o corpo da requisição contém dados válidos
+    // Verificar se o corpo da requisição contém dados válidos
+    if (!dados || Object.keys(dados).length === 0) {
       res.status(400).json({ error: 'Dados inválidos ou não fornecidos.' });
       return;
     }
-
+    
+    // Conecta ou usa a conexão existente
     const poolConnection = pool || await connectToDatabase();
+
+    // Pegando a lista de colunas protegidas do arquivo .env 
+    const colunasProtegidas = getColunasProtegidas(); 
+
+    // Obter a senha protegida do ambiente (já configurada no pool)
+    const senhaProtegida = process.env.PERMISSAO_SENHA_PROTEGIDA;
+
+    // Verificar se o usuário está tentando modificar alguma coluna protegida
+    const colunasModificadas = Object.keys(dados);
+    const colunasRestritasModificadas = colunasProtegidas.filter(coluna => colunasModificadas.includes(coluna));
+
+    if (colunasRestritasModificadas.length > 0) {
+      // Verificar se a senha foi fornecida e é válida
+      if (!dados.senha || dados.senha !== senhaProtegida) {
+        res.status(403).json({
+          error: `Acesso negado. Senha necessária para alterar as colunas protegidas: ${colunasRestritasModificadas.join(', ')}`
+        });
+        return;
+      }
+    }
+
+    // Adicionar automaticamente a "Data de Abertura do Chamado" e o "Status do Chamado"
+    dados.DAC = new Date().toISOString(); // Data e hora da abertura
+    dados.SC = 'Em Andamento'; // Status inicial do chamado
 
     // Obter os nomes das colunas da tabela 'Usuarios' dinamicamente
     const columnsResult = await poolConnection.request().query(`
@@ -39,7 +65,6 @@ export async function criarUsuario(req: Request, res: Response): Promise<void> {
           INSERT INTO TentativasAcesso (nomeUsuario, colunaTentada, sucesso)
           VALUES (@nomeUsuario, @colunaTentada, @sucesso)
         `);
-
       // Retornar erro ao cliente informando quais colunas não existem
       res.status(400).json({
         error: `As seguintes colunas não existem na tabela: ${colunasInexistentes.join(', ')}`
@@ -78,7 +103,7 @@ export async function criarUsuario(req: Request, res: Response): Promise<void> {
       }
     }
 
-    // Remover o campo senha dos dados
+    // Remover a senha dos dados antes de inserir no banco
     delete dados.senha;
 
     if (dados.id) {
