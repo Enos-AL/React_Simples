@@ -1,5 +1,4 @@
 import sql from 'mssql';
-
 require('dotenv').config({ path: require('path').resolve(__dirname, '../../../.env') });
 
 /**
@@ -44,6 +43,17 @@ export function getColunasProtegidas(): string[] {
   return colunas.split(',').map(coluna => coluna.trim()); // Divide e remove espaços
 }
 
+/**
+ * Captura as colunas automáticas a partir da variável de ambiente.
+ * Função para obter colunas automáticas (sem argumento)
+ */
+
+export function getColunaAutomatica(): string[] {
+  // Implementação que retorna um array de colunas automáticas
+  return process.env.COLUNAS_AUTOMATICAS?.split(',') || [];
+}
+
+
 let pool: sql.ConnectionPool;  // Tipagem do pool
 
 /**
@@ -61,4 +71,4 @@ export async function connectToDatabase(): Promise<sql.ConnectionPool> {
   }
 }
 
-export { sql, pool}; // Exportando o pool e o sql
+export { sql, pool };

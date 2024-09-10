@@ -4,6 +4,8 @@
         "atualizacao",
         "Atualizacao",
         "atualizacoes",
+        "Automatica",
+        "Automaticas",
         "Conclusao",
         "Configuracoes",
         "DICC",
@@ -20,6 +22,7 @@
         "usuario",
         "Usuario",
         "usuarios",
+        "verificacao",
         "Verificacao",
         "Workback"
     ]
