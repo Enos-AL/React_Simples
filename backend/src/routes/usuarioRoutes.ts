@@ -7,6 +7,7 @@ import { listarUsuarios } from '../controllers/listarUsuarios'
 import { criarChamados } from '../controllers/criarChamados'
 import { verificarChamado } from '../controllers/verificarChamado'
 import { concluirChamado } from '../controllers/concluirChamado'
+import { excluirChamado } from '../controllers/excluirChamado'
 import { filtrarChamados } from '../controllers/filtrarChamados'
 import { atualizarDados, buscarUsuario } from '../controllers/atualizarDados'
 
@@ -23,4 +24,5 @@ router.get('/buscarUsuario', buscarUsuario);
 router.post('/atualizarDados', atualizarDados);
 router.post('/filtrarChamados',filtrarChamados);
 router.put('/concluirChamado', concluirChamado);
+router.put('/excluirChamado', excluirChamado);
 export default router;
